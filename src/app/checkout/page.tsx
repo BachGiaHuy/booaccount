@@ -122,12 +122,12 @@ export default function GenericCheckoutPage() {
           Quay lại giỏ hàng
         </Link>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
-          <div className="lg:col-span-7">
-            <h1 className="text-4xl font-black text-white tracking-tighter mb-8">
-              Xác nhận <span className="text-primary">Thanh toán</span>
-            </h1>
+        <h1 className="text-4xl md:text-5xl font-black text-white tracking-tighter mb-10">
+          Xác nhận <span className="text-primary">Thanh toán</span>
+        </h1>
 
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 items-start">
+          <div className="lg:col-span-7">
             <div className="space-y-8">
               {/* Customer Info Section */}
               <div className="p-8 rounded-3xl bg-white/5 border border-white/10 space-y-6">

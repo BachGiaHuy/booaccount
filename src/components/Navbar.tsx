@@ -69,8 +69,8 @@ export function Navbar() {
         <div className="hidden md:flex items-center gap-8">
           <Link href="/" className="text-sm font-bold text-foreground/70 hover:text-primary transition-colors">Trang chủ</Link>
           <Link href="/products" className="text-sm font-bold text-foreground/70 hover:text-primary transition-colors">Tất cả sản phẩm</Link>
-          <Link href="/how-it-works" className="text-sm font-bold text-foreground/70 hover:text-primary transition-colors">Công việc</Link>
-          <Link href="/contact" className="text-sm font-bold text-foreground/70 hover:text-primary transition-colors">Liên hệ</Link>
+          <Link href="/cong-viec" className="text-sm font-bold text-foreground/70 hover:text-primary transition-colors">Công việc</Link>
+          <Link href="/lien-he" className="text-sm font-bold text-foreground/70 hover:text-primary transition-colors">Liên hệ</Link>
         </div>
 
         <div className="flex items-center gap-2 md:gap-4">
@@ -90,6 +90,12 @@ export function Navbar() {
           <div className="hidden sm:flex items-center gap-3">
             {user ? (
               <>
+                <div className="flex flex-col items-end mr-1">
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Xin chào</span>
+                  <span className="text-sm font-black text-primary">
+                    {user.email?.split('@')[0].charAt(0).toUpperCase() + user.email?.split('@')[0].slice(1, 3)}
+                  </span>
+                </div>
                 <Link
                   href="/dashboard"
                   className="flex items-center gap-2 px-5 py-2 rounded-xl bg-white/5 border border-white/10 text-foreground text-sm font-bold hover:bg-white/10 transition-colors"
@@ -144,9 +150,9 @@ export function Navbar() {
               {[
                 { label: "Trang chủ", href: "/" },
                 { label: "Tất cả sản phẩm", href: "/products" },
-                { label: "Công việc", href: "/how-it-works" },
-                { label: "Liên hệ", href: "/contact" },
-                { label: "Chính sách", href: "/policy" },
+                { label: "Công việc", href: "/cong-viec" },
+                { label: "Liên hệ", href: "/lien-he" },
+                { label: "Chính sách", href: "/dieu-khoan" },
               ].map((link) => (
                 <Link 
                   key={link.label}

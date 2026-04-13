@@ -160,7 +160,7 @@ export default function HowItWorks() {
               <Link href="/products" className="px-10 py-5 rounded-2xl bg-primary text-black font-black hover:scale-105 transition-all text-lg flex items-center gap-3 shadow-lg shadow-primary/20">
                 Bắt đầu mua sắm ngay <ArrowRight size={20} />
               </Link>
-              <Link href="/contact" className="px-10 py-5 rounded-2xl bg-white/5 border border-white/10 text-white font-bold hover:bg-white/10 transition-all text-lg flex items-center gap-2">
+              <Link href="/lien-he" className="px-10 py-5 rounded-2xl bg-white/5 border border-white/10 text-white font-bold hover:bg-white/10 transition-all text-lg flex items-center gap-2">
                 Cần tư vấn thêm <ShieldCheck size={20} />
               </Link>
             </div>

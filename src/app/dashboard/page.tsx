@@ -196,9 +196,13 @@ function DashboardContent() {
             )}
           </h1>
           <p className="text-sm text-muted-foreground">
-            {showNewOrderSuccess
-              ? "Cảm ơn bạn đã tin dùng Boo Account! Dưới đây là các tài khoản bạn vừa mua."
-              : "Chào mừng trở lại! Quản lý các dịch vụ và lịch sử mua hàng của bạn."}
+            {currentUser?.email ? (
+              <>Chào mừng trở lại, <span className="text-primary font-bold">Chào {currentUser.email.split('@')[0].charAt(0).toUpperCase() + currentUser.email.split('@')[0].slice(1, 3)}</span>! {showNewOrderSuccess ? "Cảm ơn bạn đã tin dùng Boo Account! Dưới đây là các tài khoản bạn vừa mua." : "Quản lý các dịch vụ và lịch sử mua hàng của bạn."}</>
+            ) : (
+              showNewOrderSuccess
+                ? "Cảm ơn bạn đã tin dùng Boo Account! Dưới đây là các tài khoản bạn vừa mua."
+                : "Chào mừng trở lại! Quản lý các dịch vụ và lịch sử mua hàng của bạn."
+            )}
           </p>
         </div>
 
@@ -362,7 +366,7 @@ function DashboardContent() {
                     <h4 className="text-xl font-bold text-white mb-2">Trung tâm hỗ trợ khách hàng</h4>
                     <p className="text-sm text-muted-foreground">Nếu bạn gặp bất kỳ vấn đề gì về tài khoản hoặc dịch vụ, hãy liên hệ ngay với chúng tôi.</p>
                   </div>
-                  <Link href="/contact" className="px-8 py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-bold hover:bg-white/10 transition-all flex items-center gap-2">
+                  <Link href="/lien-he" className="px-8 py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-bold hover:bg-white/10 transition-all flex items-center gap-2">
                     Gửi yêu cầu <ExternalLink size={18} />
                   </Link>
                 </div>

@@ -42,7 +42,7 @@ export function Footer() {
           <div>
             <h4 className="text-foreground font-black mb-6 uppercase text-m tracking-[0.2em]">Hỗ trợ</h4>
             <ul className="space-y-4 text-base text-muted-foreground">
-              <li><Link href="/policy#warranty" className="hover:text-primary transition-colors">Chính sách bảo hành</Link></li>
+              <li><Link href="/dieu-khoan#warranty" className="hover:text-primary transition-colors">Chính sách bảo hành</Link></li>
               <li><Link href="#" className="hover:text-primary transition-colors">Hướng dẫn thanh toán</Link></li>
               <li><Link href="#" className="hover:text-primary transition-colors">Câu hỏi thường gặp</Link></li>
               <li><Link href="#" className="hover:text-primary transition-colors">Liên hệ Admin</Link></li>
@@ -68,8 +68,8 @@ export function Footer() {
         <div className="flex flex-col md:flex-row justify-between items-center gap-4 pt-10 border-t border-border text-xs text-muted-foreground">
           <p>© 2026 Boo Account. Đã đăng ký bản quyền.</p>
           <div className="flex gap-8">
-            <Link href="/policy#terms" className="hover:text-foreground transition-colors">Điều khoản</Link>
-            <Link href="/policy#privacy" className="hover:text-foreground transition-colors">Bảo mật</Link>
+            <Link href="/dieu-khoan#terms" className="hover:text-foreground transition-colors">Điều khoản</Link>
+            <Link href="/dieu-khoan#privacy" className="hover:text-foreground transition-colors">Bảo mật</Link>
             <Link href="#" className="hover:text-foreground transition-colors">Cookies</Link>
           </div>
         </div>
