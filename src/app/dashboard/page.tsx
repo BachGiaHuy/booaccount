@@ -390,64 +390,66 @@ function DashboardContent() {
                 return (
                   <div key={order.id} className="group relative rounded-3xl p-px bg-gradient-to-r from-white/10 to-transparent hover:from-primary/20 transition-all">
                     <div className="relative p-5 md:p-8 rounded-3xl bg-[#141414] overflow-hidden">
-                      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8 pb-6 border-b border-white/5">
+                      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-6 mb-6 md:mb-8 pb-6 border-b border-white/5">
                         <div className="flex items-center gap-4">
-                          <div className="w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center text-3xl">
+                          <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-white/5 flex items-center justify-center text-2xl md:text-3xl shrink-0 text-white">
                             {order.products.brand === 'netflix' ? '📺' : order.products.brand === 'spotify' ? '🎵' : order.products.brand === 'google' ? '☁️' : '🎬'}
                           </div>
-                          <div>
-                            <div className="flex items-center gap-2 mb-1">
-                              <h3 className="text-xl font-bold text-white">{order.products.name}</h3>
-                              {order.duration_label && (
-                                <span className="px-2 py-0.5 rounded-md bg-primary/10 text-primary text-[10px] font-black uppercase tracking-tight border border-primary/20">
-                                  {order.duration_label}
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2 mb-1">
+                              <h3 className="text-lg md:text-xl font-bold text-white truncate">{order.products.name}</h3>
+                              <div className="flex gap-1.5">
+                                {order.duration_label && (
+                                  <span className="px-1.5 py-0.5 rounded-md bg-primary/10 text-primary text-[9px] font-black uppercase tracking-tight border border-primary/20">
+                                    {order.duration_label}
+                                  </span>
+                                )}
+                                <span className={cn(
+                                  "px-1.5 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-tight",
+                                  order.status === 'completed' ? "bg-white/5 text-white/40" : "bg-yellow-500/10 text-yellow-500"
+                                )}>
+                                  {order.status === 'completed' ? 'Active' : 'Pending'}
                                 </span>
-                              )}
-                              <span className={cn(
-                                "px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-tight",
-                                order.status === 'completed' ? "bg-white/5 text-white/40" : "bg-yellow-500/10 text-yellow-500"
-                              )}>
-                                {order.status === 'completed' ? 'Active' : 'Pending'}
-                              </span>
+                              </div>
                             </div>
-                            <p className="text-sm text-muted-foreground flex items-center gap-4">
-                              <span className="flex items-center gap-1.5"><Calendar size={14} /> {new Date(order.created_at).toLocaleDateString("vi-VN")}</span>
-                              <span className="flex items-center gap-1.5"><Clock size={14} /> {order.order_number}</span>
+                            <div className="text-[11px] md:text-sm text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1">
+                              <span className="flex items-center gap-1.5"><Calendar size={12} className="md:size-[14px]" /> {new Date(order.created_at).toLocaleDateString("vi-VN")}</span>
+                              <span className="flex items-center gap-1.5"><Clock size={12} className="md:size-[14px]" /> {order.order_number}</span>
                               <span className="font-bold text-primary">{(order.price || order.products.price).toLocaleString()}đ</span>
-                            </p>
+                            </div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-3">
+                        <div className="grid grid-cols-2 md:flex items-center gap-3 w-full md:w-auto">
                           <Link 
                             href={`/invoice/${order.id}`}
-                            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary/10 border border-primary/20 text-primary text-sm hover:bg-primary hover:text-black transition-all group/print"
+                            className="flex items-center justify-center gap-2 px-4 py-2.5 md:py-2 rounded-xl bg-primary/10 border border-primary/20 text-primary text-xs md:text-sm hover:bg-primary hover:text-black transition-all group/print"
                           >
                             <Printer size={16} className="group-hover/print:scale-110 transition-transform" />
                             In hóa đơn
                           </Link>
-                          <button className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-sm hover:bg-white/10 transition-colors">
-                            Yêu cầu hỗ trợ
+                          <button className="flex items-center justify-center gap-2 px-4 py-2.5 md:py-2 rounded-xl bg-white/5 border border-white/10 text-white text-xs md:text-sm hover:bg-white/10 transition-colors">
+                            Hỗ trợ
                             <ExternalLink size={16} />
                           </button>
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-                        <div className="p-3 md:p-4 rounded-2xl bg-black/40 border border-white/5">
-                          <div className="flex items-center gap-2 mb-2 text-muted-foreground text-xs uppercase tracking-widest">
-                            <Mail size={14} /> Tài khoản
+                      <div className="flex flex-col gap-3 md:grid md:grid-cols-3 md:gap-6">
+                        <div className="flex md:flex-col items-center md:items-start justify-between p-3 md:p-4 rounded-2xl bg-black/40 border border-white/5">
+                          <div className="flex items-center gap-2 text-muted-foreground text-[10px] md:text-xs uppercase tracking-widest">
+                            <Mail size={14} /> <span className="md:inline">Tài khoản</span>
                           </div>
-                          <p className="text-sm font-bold text-white truncate">{accEmail}</p>
+                          <p className="text-sm font-bold text-white truncate max-w-[150px] md:max-w-full">{accEmail}</p>
                         </div>
-                        <div className="p-4 rounded-2xl bg-black/40 border border-white/5">
-                          <div className="flex items-center gap-2 mb-2 text-muted-foreground text-xs uppercase tracking-widest">
-                            <Key size={14} /> Mật khẩu
+                        <div className="flex md:flex-col items-center md:items-start justify-between p-3 md:p-4 rounded-2xl bg-black/40 border border-white/5">
+                          <div className="flex items-center gap-2 text-muted-foreground text-[10px] md:text-xs uppercase tracking-widest">
+                            <Key size={14} /> <span className="md:inline">Mật khẩu</span>
                           </div>
                           <p className="text-sm font-bold text-white tracking-widest">{accPass}</p>
                         </div>
-                        <div className="p-4 rounded-2xl bg-black/40 border border-white/5">
-                          <div className="flex items-center gap-2 mb-2 text-muted-foreground text-xs uppercase tracking-widest">
-                            <Shield size={14} /> Profile / Note
+                        <div className="flex md:flex-col items-center md:items-start justify-between p-3 md:p-4 rounded-2xl bg-black/40 border border-white/5">
+                          <div className="flex items-center gap-2 text-muted-foreground text-[10px] md:text-xs uppercase tracking-widest">
+                            <Shield size={14} /> <span className="md:inline">Profile / Note</span>
                           </div>
                           <p className="text-sm font-bold text-white">{accProfile || "Premium"}</p>
                         </div>

@@ -120,13 +120,17 @@ export async function completeOrderAction(
     }
 
     // Trigger Email Delivery
-    const summaryText = deliveredItems.map(item => `• ${item.name}: ${item.data}`).join("\n");
+    // If only one item, pass the raw data for structured display in email
+    // If multiple items, pass a summary list
+    const accountDataToEmail = deliveredItems.length === 1 
+      ? deliveredItems[0].data 
+      : deliveredItems.map(item => `• ${item.name}: ${item.data}`).join("\n");
     
     await sendAccountDeliveryEmail({
       email: userEmail,
       orderNumber: orderNumber,
       productName: items.length > 1 ? `${items.length} sản phẩm` : items[0].name,
-      accountData: summaryText,
+      accountData: accountDataToEmail,
       customerName: customerDetails?.name
     });
 
