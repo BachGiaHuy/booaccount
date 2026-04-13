@@ -50,3 +50,21 @@ export async function getRecentSalesAction() {
     return { success: false, error: error.message };
   }
 }
+export async function getSalesAction() {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("orders")
+      .select("*, products(name, price)")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Get All Sales Error:", error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, data };
+  } catch (error: any) {
+    console.error("Action Catch Error:", error);
+    return { success: false, error: error.message };
+  }
+}

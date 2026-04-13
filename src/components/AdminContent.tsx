@@ -34,6 +34,7 @@ import { supabase } from "@/lib/supabase";
 import { importInventoryAction, addProductAction, updateProductAction, deleteProductAction, standardizeProductFeatures, getCustomersAction, syncInventorySamplesAction } from "@/app/actions/admin";
 import { getTicketsAction, updateTicketStatusAction, replyToTicketAction } from "@/app/actions/tickets";
 import { getCouponsAction, createCouponAction, deleteCouponAction } from "@/app/actions/coupons";
+import { getSalesAction } from "@/app/actions/sales";
 import { motion, AnimatePresence } from "framer-motion";
 import { isAdmin } from "@/lib/admin-config";
 import { User } from "@supabase/supabase-js";
@@ -125,8 +126,10 @@ export default function AdminContent() {
   };
 
   const fetchSales = async () => {
-    const { data } = await supabase.from("orders").select("*, products(name, price)").order("created_at", { ascending: false });
-    if (data) setSales(data);
+    const res = await getSalesAction();
+    if (res.success && res.data) {
+      setSales(res.data);
+    }
   };
 
   const fetchUsers = async () => {
