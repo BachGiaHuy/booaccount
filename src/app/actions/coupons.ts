@@ -102,3 +102,26 @@ export async function validateCouponAction(code: string) {
     return { success: false, error: "Lỗi khi kiểm tra mã giảm giá." };
   }
 }
+
+export async function incrementCouponUsageAction(couponId: string) {
+  try {
+    const { data: coupon, error: fetchError } = await supabaseAdmin
+      .from("coupons")
+      .select("used_count")
+      .eq("id", couponId)
+      .single();
+
+    if (fetchError) throw fetchError;
+
+    const { error: updateError } = await supabaseAdmin
+      .from("coupons")
+      .update({ used_count: (coupon.used_count || 0) + 1 })
+      .eq("id", couponId);
+
+    if (updateError) throw updateError;
+    return { success: true };
+  } catch (error: any) {
+    console.error("Increment Coupon Usage Error:", error);
+    return { success: false, error: error.message };
+  }
+}

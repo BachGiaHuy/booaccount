@@ -11,6 +11,8 @@ import { completeOrderAction } from "../../actions/checkout";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { trackCustomerAction } from "../../actions/admin";
+import { validateCouponAction, incrementCouponUsageAction } from "../../actions/coupons";
+import { Ticket, Check, RefreshCw } from "lucide-react";
 
 export default function CheckoutPage({ params }: { params: Promise<{ id: string }> }) {
   // 1. Tất cả các Hooks phải ở trên cùng
@@ -28,6 +30,12 @@ export default function CheckoutPage({ params }: { params: Promise<{ id: string 
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
   const [shouldSaveInfo, setShouldSaveInfo] = useState(true);
+
+  // Coupon States
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
+  const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
+  const [couponError, setCouponError] = useState<string | null>(null);
 
   // 2. Sau đó mới đến các biến thông thường
   const productId = unwrappedParams.id;
@@ -131,7 +139,37 @@ export default function CheckoutPage({ params }: { params: Promise<{ id: string 
     return `${months} Tháng`;
   };
 
-  const currentPrice = product ? calculatePrice(product.price, selectedDuration) : 0;
+  const basePrice = product ? calculatePrice(product.price, selectedDuration) : 0;
+  
+  // Calculate discount
+  const getDiscountAmount = () => {
+    if (!appliedCoupon) return 0;
+    if (appliedCoupon.type === "percent") {
+      return (basePrice * appliedCoupon.value) / 100;
+    }
+    return appliedCoupon.value;
+  };
+
+  const discountAmount = getDiscountAmount();
+  const currentPrice = Math.max(0, basePrice - discountAmount);
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) return;
+    
+    setIsValidatingCoupon(true);
+    setCouponError(null);
+    
+    const result = await validateCouponAction(couponCode);
+    
+    if (result.success) {
+      setAppliedCoupon(result.coupon);
+      setCouponCode(""); // Clear after apply
+    } else {
+      setCouponError(result.error || "Mã không hợp lệ.");
+      setAppliedCoupon(null);
+    }
+    setIsValidatingCoupon(false);
+  };
 
   const handleConfirmPayment = async () => {
     if (!email || !email.includes("@")) {
@@ -174,6 +212,11 @@ export default function CheckoutPage({ params }: { params: Promise<{ id: string 
       }
       
       trackCustomerAction(email, name, phone);
+
+      // Increment coupon usage if applied
+      if (appliedCoupon) {
+        incrementCouponUsageAction(appliedCoupon.id);
+      }
 
       setTimeout(() => {
         router.push("/dashboard?new_order=true");
@@ -274,10 +317,71 @@ export default function CheckoutPage({ params }: { params: Promise<{ id: string 
                       <p className="text-sm text-muted-foreground">Gói Premium {getDurationLabel(selectedDuration)}</p>
                     </div>
                   </div>
-                  <span className="text-xl font-bold text-white">{currentPrice.toLocaleString()}đ</span>
+                  <div className="text-right">
+                    {appliedCoupon ? (
+                      <div className="space-y-1">
+                        <span className="text-xs text-muted-foreground line-through block">{basePrice.toLocaleString()}đ</span>
+                        <span className="text-xl font-bold text-primary">{currentPrice.toLocaleString()}đ</span>
+                      </div>
+                    ) : (
+                      <span className="text-xl font-bold text-white">{currentPrice.toLocaleString()}đ</span>
+                    )}
+                  </div>
                 </div>
 
-                <div className="space-y-4">
+                {/* Voucher Input Area */}
+                <div className="pt-6 border-t border-white/5">
+                  {!appliedCoupon ? (
+                    <div className="space-y-3">
+                      <div className="flex gap-2">
+                        <div className="relative flex-1">
+                          <Ticket className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+                          <input 
+                            type="text" 
+                            placeholder="Nhập mã giảm giá (nếu có)"
+                            className="w-full bg-black/40 border border-white/10 rounded-xl pl-11 pr-4 py-3 text-sm text-white focus:outline-none focus:border-primary/50 transition-all"
+                            value={couponCode}
+                            onChange={(e) => setCouponCode(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleApplyCoupon()}
+                          />
+                        </div>
+                        <button 
+                          onClick={handleApplyCoupon}
+                          disabled={isValidatingCoupon || !couponCode.trim()}
+                          className="px-6 rounded-xl bg-white/10 text-white text-sm font-bold hover:bg-white/20 transition-all disabled:opacity-50 flex items-center gap-2"
+                        >
+                          {isValidatingCoupon ? <RefreshCw size={16} className="animate-spin" /> : "Áp dụng"}
+                        </button>
+                      </div>
+                      {couponError && <p className="text-xs text-red-400 ml-1 flex items-center gap-1.5"><AlertCircle size={12} /> {couponError}</p>}
+                    </div>
+                  ) : (
+                    <div className="flex justify-between items-center p-3 rounded-xl bg-primary/10 border border-primary/20">
+                      <div className="flex items-center gap-2 text-primary font-bold text-sm">
+                        <Check size={16} />
+                        Mã "{appliedCoupon.code}" đã được áp dụng
+                      </div>
+                      <button 
+                        onClick={() => setAppliedCoupon(null)}
+                        className="text-xs text-white/40 hover:text-white transition-colors underline"
+                      >
+                        Gỡ bỏ
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-6 space-y-4">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Tạm tính:</span>
+                    <span className="text-white">{basePrice.toLocaleString()}đ</span>
+                  </div>
+                  {appliedCoupon && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-primary">Giảm giá:</span>
+                      <span className="text-primary font-bold">-{discountAmount.toLocaleString()}đ</span>
+                    </div>
+                  )}
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Mã đơn hàng:</span>
                     <span className="text-white font-mono">{orderId}</span>
