@@ -21,6 +21,7 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchFeaturedProducts();
@@ -28,35 +29,50 @@ export default function Home() {
 
   const fetchFeaturedProducts = async () => {
     setIsLoading(true);
+    setError(null);
     
-    // 1. Fetch featured products first
-    const { data: featuredData } = await supabase
-      .from("products")
-      .select("*")
-      .eq("is_featured", true);
+    try {
+      // 1. Fetch featured products first
+      const { data: featuredData, error: featuredError } = await supabase
+        .from("products")
+        .select("*")
+        .eq("is_featured", true);
 
-    // 2. If we have less than 12 products total, fetch more latest products to fill up the slider
-    const { data: allData } = await supabase
-      .from("products")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(20);
+      if (featuredError) throw featuredError;
 
-    // Combine them, ensuring featured ones are at the front and no duplicates
-    const combined = [...(featuredData || [])];
-    const featuredIds = new Set(combined.map(p => p.id));
-    
-    if (allData) {
-      allData.forEach(p => {
-        if (!featuredIds.has(p.id)) {
-          combined.push(p);
-        }
-      });
+      // 2. Fetch latest products
+      const { data: allData, error: allError } = await supabase
+        .from("products")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(20);
+
+      if (allError) throw allError;
+
+      // Combine them
+      const combined = [...(featuredData || [])];
+      const featuredIds = new Set(combined.map(p => p.id));
+      
+      if (allData) {
+        allData.forEach(p => {
+          if (!featuredIds.has(p.id)) {
+            combined.push(p);
+          }
+        });
+      }
+
+      if (combined.length === 0) {
+        console.warn("No products found in database.");
+      }
+
+      setProducts(combined);
+      setFilteredProducts(combined);
+    } catch (err: any) {
+      console.error("Error fetching products:", err);
+      setError(err.message || "Không thể tải danh sách sản phẩm. Vui lòng kiểm tra kết nối Supabase.");
+    } finally {
+      setIsLoading(false);
     }
-
-    setProducts(combined);
-    setFilteredProducts(combined);
-    setIsLoading(false);
   };
 
   const handleSearch = (query: string) => {
@@ -143,10 +159,32 @@ export default function Home() {
 
           <CategoryBar activeCategory={selectedCategory} onSelectCategory={handleCategorySelect} />
 
-          {isLoading ? (
-            <div className="flex flex-col items-center justify-center py-20 gap-4">
-              <Loader2 size={32} className="text-primary animate-spin" />
-              <p className="text-sm text-muted-foreground">Đang tải danh sách dịch vụ...</p>
+          {/* Error or Empty State */}
+          {error ? (
+            <div className="text-center py-20">
+              <div className="bg-red-500/10 border border-red-500/20 text-red-500 p-4 rounded-xl inline-block max-w-md">
+                <p className="font-semibold">Lỗi kết nối dự án:</p>
+                <p className="text-sm opacity-90">{error}</p>
+                <p className="text-xs mt-2 italic text-gray-500">Mẹo: Kiểm tra lại Biến môi trường trên Vercel xem đã điền đúng URL và Key chưa.</p>
+              </div>
+            </div>
+          ) : isLoading ? (
+            <div className="flex flex-col items-center justify-center py-24 gap-4">
+              <div className="relative">
+                <Loader2 className="w-12 h-12 text-primary animate-spin" />
+                <div className="absolute inset-0 blur-xl bg-primary/20 animate-pulse" />
+              </div>
+              <p className="text-gray-400 font-medium animate-pulse">Đang tải danh sách dịch vụ...</p>
+            </div>
+          ) : filteredProducts.length === 0 ? (
+            <div className="text-center py-24">
+              <div className="bg-gray-800/50 border border-gray-700 p-8 rounded-2xl inline-block">
+                <p className="text-gray-400 font-medium text-lg">Hệ thống chưa có sản phẩm nào.</p>
+                <p className="text-gray-500 text-sm mt-2">Vui lòng chạy lệnh đổ dữ liệu hoặc thêm sản phẩm trong Admin.</p>
+                <Link href="/admin" className="mt-6 inline-flex items-center gap-2 text-primary hover:underline font-semibold">
+                  Đến trang Admin <ArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
             </div>
           ) : (
             <div className="relative -mx-6 px-6 group/slider">
