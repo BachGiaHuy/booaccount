@@ -1,8 +1,13 @@
-"use server";
+import nodemailer from "nodemailer";
 
-import { Resend } from "resend";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Configure Gmail Transporter
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_APP_PASSWORD,
+  },
+});
 
 interface SendDetails {
   email: string;
@@ -22,9 +27,9 @@ export async function sendAccountDeliveryEmail({
   const [accEmail, accPass, accProfile] = accountData.split("|");
 
   try {
-    const { data, error } = await resend.emails.send({
-      from: "Boo Account <delivery@resend.dev>", // Replace with verified domain in production
-      to: [email],
+    const mailOptions = {
+      from: `"Boo Account" <${process.env.GMAIL_USER}>`,
+      to: email,
       subject: `[Boo Account] Đơn hàng #${orderNumber} đã sẵn sàng!`,
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; background: #0e0e0e; color: #ffffff; padding: 40px; border-radius: 24px;">
@@ -51,14 +56,10 @@ export async function sendAccountDeliveryEmail({
           <p style="color: #666; font-size: 12px; text-align: center;">© 2024 Boo Account - Premium Digital Store</p>
         </div>
       `,
-    });
+    };
 
-    if (error) {
-      console.error("Resend Error:", error);
-      return { success: false, error };
-    }
-
-    return { success: true, data };
+    const info = await transporter.sendMail(mailOptions);
+    return { success: true, data: info };
   } catch (error) {
     console.error("Internal Email Error:", error);
     return { success: false, error };
@@ -81,9 +82,9 @@ export async function sendSupportReplyEmail({
   replyMessage
 }: SupportReplyDetails) {
   try {
-    const { data, error } = await resend.emails.send({
-      from: "Boo Account Support <support@resend.dev>", // Replace with verified domain
-      to: [email],
+    const mailOptions = {
+      from: `"Boo Account Support" <${process.env.GMAIL_USER}>`,
+      to: email,
       subject: `Re: ${subject} - Phản hồi từ Boo Account`,
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; background: #0e0e0e; color: #ffffff; padding: 40px; border-radius: 24px; border: 1px solid #262626;">
@@ -118,14 +119,10 @@ export async function sendSupportReplyEmail({
           <p style="color: #444; font-size: 10px; text-align: center; margin-top: 8px;">© 2024 Boo Account - Đà Nẵng, Việt Nam</p>
         </div>
       `,
-    });
+    };
 
-    if (error) {
-      console.error("Resend Support Error:", error);
-      return { success: false, error };
-    }
-
-    return { success: true, data };
+    const info = await transporter.sendMail(mailOptions);
+    return { success: true, data: info };
   } catch (error) {
     console.error("Internal Support Email Error:", error);
     return { success: false, error };

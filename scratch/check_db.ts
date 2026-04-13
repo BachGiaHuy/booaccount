@@ -1,15 +1,19 @@
 import { supabaseAdmin } from "../src/lib/supabase-admin";
 
-async function checkTable() {
-  const { error } = await supabaseAdmin.from("coupons").select("*").limit(1);
+async function checkLatestOrders() {
+  console.log("--- KIỂM TRA 5 ĐƠN HÀNG MỚI NHẤT ---");
+  const { data, error } = await supabaseAdmin
+    .from("orders")
+    .select("*, products(name)")
+    .order("created_at", { ascending: false })
+    .limit(5);
+
   if (error) {
-    console.log("Table check error:", error.message);
-    if (error.message.includes("relation \"public.coupons\" does not exist")) {
-      console.log("CRITICAL: Table 'coupons' is missing!");
-    }
-  } else {
-    console.log("Table 'coupons' exists and is accessible.");
+    console.error("Lỗi truy vấn:", error);
+    return;
   }
+
+  console.log(JSON.stringify(data, null, 2));
 }
 
-checkTable();
+checkLatestOrders();

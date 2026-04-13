@@ -193,11 +193,20 @@ export default function CheckoutPage({ params }: { params: Promise<{ id: string 
       durationLabel: getDurationLabel(selectedDuration)
     }];
 
-    const result = await completeOrderAction(items, email, orderId, {
-      name,
-      phone,
-      address
-    });
+    const result = await completeOrderAction(
+      items, 
+      email, 
+      orderId, 
+      {
+        name,
+        phone,
+        address
+      },
+      appliedCoupon ? {
+        amount: discountAmount,
+        couponCode: appliedCoupon.code
+      } : undefined
+    );
 
     if (result.success) {
       if (typeof window !== "undefined") {

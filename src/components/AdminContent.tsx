@@ -690,8 +690,15 @@ export default function AdminContent() {
                       <div className="w-16 h-16 rounded-3xl bg-white/5 flex items-center justify-center text-primary group-hover:scale-110 transition-all"><ShieldCheck size={32} /></div>
                       <div>
                         <div className="flex items-center gap-3 mb-1">
-                          <h3 className="text-xl font-bold text-white">{sale.products.name}</h3>
-                          <span className="px-3 py-1 rounded-lg bg-white/10 text-white text-[10px] uppercase font-black">#{sale.order_number}</span>
+                          <h3 className="text-xl font-bold text-white">{sale.products?.name || "Sản phẩm không xác định"}</h3>
+                          <div className="flex items-center gap-2">
+                            <span className="px-3 py-1 rounded-lg bg-white/10 text-white text-[10px] uppercase font-black">#{sale.order_number}</span>
+                            {sale.coupon_used && (
+                              <span className="px-3 py-1 rounded-lg bg-primary/20 text-primary text-[10px] uppercase font-black border border-primary/20 flex items-center gap-1">
+                                <Ticket size={10} /> {sale.coupon_used}
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <div className="space-y-1">
                           <p className="text-sm text-primary font-bold flex items-center gap-2">
@@ -710,9 +717,16 @@ export default function AdminContent() {
                     </div>
                     <div className="text-right">
                       <p className="text-lg font-black text-white mb-1 uppercase tracking-tighter">{new Date(sale.created_at).toLocaleString("vi-VN")}</p>
-                      <span className="px-3 py-1 rounded-lg bg-primary/10 text-primary text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-                        <CheckCircle2 size={12} /> Giao hàng tự động thành công
-                      </span>
+                      <div className="flex flex-col items-end gap-2">
+                        {sale.discount_amount > 0 && (
+                          <span className="text-[10px] text-primary font-bold uppercase tracking-widest bg-primary/10 px-2 py-0.5 rounded">
+                            Giảm {sale.discount_amount.toLocaleString()}đ
+                          </span>
+                        )}
+                        <span className="px-3 py-1 rounded-lg bg-primary/10 text-primary text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+                          <CheckCircle2 size={12} /> Giao hàng tự động thành công
+                        </span>
+                      </div>
                     </div>
                   </div>
                 ))}

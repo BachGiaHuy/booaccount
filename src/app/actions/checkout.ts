@@ -26,6 +26,10 @@ export async function completeOrderAction(
     name: string;
     phone: string;
     address: string;
+  },
+  discountInfo?: {
+    amount: number;
+    couponCode: string;
   }
 ): Promise<CheckoutResult> {
   try {
@@ -33,8 +37,6 @@ export async function completeOrderAction(
 
     // Process each item in the cart
     for (const item of items) {
-      // Find available accounts for this specific product
-      // We search by product_id and status
       const { data: inventoryItems, error: fetchError } = await supabase
         .from("inventory")
         .select("id, account_data")
@@ -52,9 +54,16 @@ export async function completeOrderAction(
       // Mark items as sold and create order records
       for (const inv of inventoryItems) {
         // Update status
-        await supabase.from("inventory").update({ status: "sold" }).eq("id", inv.id);
+        const { error: updateError } = await supabase
+          .from("inventory")
+          .update({ status: "sold" })
+          .eq("id", inv.id);
 
-        // Create order (Suffixing order number to avoid unique constraint if not removed)
+        if (updateError) {
+          console.error("Inventory Update Error:", updateError);
+          throw new Error("Không thể cập nhật trạng thái kho hàng.");
+        }
+
         const subOrderNumber = items.length > 1 ? `${orderNumber}-${inv.id.slice(0, 4)}` : orderNumber;
         
         const orderData: any = {
@@ -67,20 +76,37 @@ export async function completeOrderAction(
           customer_name: customerDetails?.name,
           phone_number: customerDetails?.phone,
           address: customerDetails?.address,
-          price: item.price, // store actual price paid
-          duration: item.duration, // new column
-          duration_label: item.durationLabel // new column
+          price: item.price,
+          duration: item.duration,
+          duration_label: item.durationLabel,
+          // Support for discount info if columns exist
+          discount_amount: discountInfo?.amount || 0,
+          coupon_used: discountInfo?.couponCode || null
         };
 
-        await supabase.from("orders").insert(orderData);
+        const { error: insertError } = await supabase.from("orders").insert(orderData);
+        
+        if (insertError) {
+          console.error("Order Insertion Error:", insertError);
+          // If columns don't exist yet, we retry without them to at least save the order
+          if (insertError.code === 'P0001' || insertError.message.includes("column")) {
+             const { error: retryError } = await supabase.from("orders").insert({
+               ...orderData,
+               discount_amount: undefined,
+               coupon_used: undefined
+             });
+             if (retryError) throw retryError;
+          } else {
+            throw insertError;
+          }
+        }
 
         const displayName = item.durationLabel ? `${item.name} (${item.durationLabel})` : item.name;
         deliveredItems.push({ name: displayName, data: inv.account_data });
       }
     }
 
-    // Trigger Email Delivery with all items
-    // We'll update the email logic to handle a list of items
+    // Trigger Email Delivery
     const summaryText = deliveredItems.map(item => `• ${item.name}: ${item.data}`).join("\n");
     
     await sendAccountDeliveryEmail({
@@ -98,6 +124,9 @@ export async function completeOrderAction(
 
   } catch (error: any) {
     console.error("Checkout Action Error:", error);
-    return { success: false, error: error.message || "Lỗi hệ thống trong quá trình xử lý đơn hàng." };
+    return { 
+      success: false, 
+      error: error.message || "Lỗi hệ thống trong quá trình xử lý đơn hàng." 
+    };
   }
 }
