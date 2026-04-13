@@ -8,6 +8,7 @@ import {
   Package,
   Database,
   CheckCircle2,
+  Check,
   AlertCircle,
   Users,
   History,
@@ -31,10 +32,10 @@ import { useDropzone } from "react-dropzone";
 import Papa from "papaparse";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
-import { importInventoryAction, addProductAction, updateProductAction, deleteProductAction, standardizeProductFeatures, getCustomersAction, syncInventorySamplesAction } from "@/app/actions/admin";
-import { getTicketsAction, updateTicketStatusAction, replyToTicketAction } from "@/app/actions/tickets";
+import { getTicketsAction, updateTicketStatusAction, replyToTicketAction, deleteTicketAction } from "@/app/actions/tickets";
 import { getCouponsAction, createCouponAction, deleteCouponAction } from "@/app/actions/coupons";
-import { getSalesAction } from "@/app/actions/sales";
+import { getSalesAction, deleteOrderAction } from "@/app/actions/sales";
+import { importInventoryAction, addProductAction, updateProductAction, deleteProductAction, standardizeProductFeatures, getCustomersAction, syncInventorySamplesAction, deleteCustomerAction } from "@/app/actions/admin";
 import { motion, AnimatePresence } from "framer-motion";
 import { isAdmin } from "@/lib/admin-config";
 import { User } from "@supabase/supabase-js";
@@ -65,11 +66,16 @@ export default function AdminContent() {
   const [status, setStatus] = useState<{ type: "success" | "error"; msg: string } | null>(null);
   const [sales, setSales] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [userSearchQuery, setUserSearchQuery] = useState("");
+  const [orderSearchQuery, setOrderSearchQuery] = useState("");
+  const [ticketSearchQuery, setTicketSearchQuery] = useState("");
+  const [couponSearchQuery, setCouponSearchQuery] = useState("");
   const [usersList, setUsersList] = useState<any[]>([]);
   const [ticketsList, setTicketsList] = useState<any[]>([]);
   const [replies, setReplies] = useState<Record<string, string>>({});
   const [replyingToId, setReplyingToId] = useState<string | null>(null);
   const [couponsList, setCouponsList] = useState<any[]>([]);
+  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [user, setUser] = useState<User | null>(null);
   const [isVerifying, setIsVerifying] = useState(true);
   const router = useRouter();
@@ -102,7 +108,7 @@ export default function AdminContent() {
   const checkAdmin = async () => {
     setIsVerifying(true);
     const { data: { session } } = await supabase.auth.getSession();
-    
+
     if (!session || !isAdmin(session.user.email)) {
       setUser(null);
       setIsVerifying(false);
@@ -111,7 +117,7 @@ export default function AdminContent() {
 
     setUser(session.user);
     setIsVerifying(false);
-    
+
     // Once verified, fetch data
     fetchProducts();
     fetchSales();
@@ -195,6 +201,77 @@ export default function AdminContent() {
     const res = await updateTicketStatusAction(id, newStatus);
     if (res.success) {
       fetchTickets();
+    }
+  };
+
+  const handleDeleteTicket = async (id: string) => {
+    if (!confirm("Xóa yêu cầu hỗ trợ này vĩnh viễn?")) return;
+    const res = await deleteTicketAction(id);
+    if (res.success) {
+      fetchTickets();
+    } else {
+      setStatus({ type: "error", msg: res.error || "Lỗi khi xóa ticket." });
+    }
+  };
+
+  const handleDeleteOrder = async (id: string) => {
+    if (!confirm("Bạn có chắc chắn muốn xóa đơn hàng này? Thao tác này sẽ xóa vĩnh viễn dữ liệu giao dịch.")) return;
+    setIsLoading(true);
+    const res = await deleteOrderAction(id);
+    setIsLoading(false);
+    if (res.success) {
+      fetchSales();
+    } else {
+      setStatus({ type: "error", msg: res.error || "Lỗi khi xóa đơn hàng." });
+    }
+  };
+
+  const handleDeleteUser = async (id: string) => {
+    // Only delete if it's a customer record
+    if (!confirm("Xóa thông tin khách hàng này khỏi danh sách quản lý?")) return;
+    setIsLoading(true);
+    const res = await deleteCustomerAction(id);
+    setIsLoading(false);
+    if (res.success) {
+      fetchUsers();
+    } else {
+      setStatus({ type: "error", msg: res.error || "Lỗi khi xóa người dùng." });
+    }
+  };
+
+  const toggleSelectOrder = (id: string) => {
+    setSelectedOrderIds(prev => 
+      prev.includes(id) ? prev.filter(oid => oid !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAllOrders = (visibleOrders: any[]) => {
+    if (selectedOrderIds.length === visibleOrders.length && visibleOrders.length > 0) {
+      setSelectedOrderIds([]);
+    } else {
+      setSelectedOrderIds(visibleOrders.map(o => o.id));
+    }
+  };
+
+  const handleBulkDeleteOrders = async () => {
+    if (!confirm(`Bạn có chắc chắn muốn xóa ${selectedOrderIds.length} đơn hàng đã chọn? Hành động này không thể hoàn tác.`)) return;
+    
+    setIsLoading(true);
+    try {
+      const { deleteOrdersBulkAction } = await import("@/app/actions/sales");
+      const res = await deleteOrdersBulkAction(selectedOrderIds);
+      if (res.success) {
+        setStatus({ type: "success", msg: `Đã xóa thành công ${selectedOrderIds.length} đơn hàng!` });
+        setSelectedOrderIds([]);
+        fetchSales();
+      } else {
+        setStatus({ type: "error", msg: res.error || "Lỗi khi xóa hàng loạt" });
+      }
+    } catch (error) {
+      setStatus({ type: "error", msg: "Lỗi kết nối máy chủ" });
+    } finally {
+      setIsLoading(false);
+      setTimeout(() => setStatus(null), 3000);
     }
   };
 
@@ -342,13 +419,13 @@ export default function AdminContent() {
       setStatus({ type: "error", msg: `Lỗi: ${result.error}` });
     }
   };
-  
+
   const handleQuickSync = async () => {
     setIsLoading(true);
     setStatus(null);
     const result = await syncInventorySamplesAction();
     setIsLoading(false);
-    
+
     if (result.success && 'message' in result) {
       setStatus({ type: "success", msg: result.message as string });
       fetchProducts(); // Refresh product list to show updated stock if needed
@@ -384,7 +461,7 @@ export default function AdminContent() {
   if (!user || !isAdmin(user.email)) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center p-6">
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           className="w-full max-w-md p-10 rounded-[3rem] bg-white/5 border border-white/10 text-center space-y-6"
@@ -410,7 +487,7 @@ export default function AdminContent() {
   }
 
   return (
-    <div className="min-h-screen flex bg-black">
+    <div className="h-screen flex bg-black overflow-hidden">
       {/* Sidebar */}
       <aside className="w-80 border-r border-white/5 p-8 flex flex-col gap-10 sticky top-0 h-screen">
         <div className="flex items-center gap-2 px-2">
@@ -439,7 +516,7 @@ export default function AdminContent() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-grow p-12">
+      <main className="flex-grow h-screen overflow-y-auto p-12 custom-scrollbar">
         <AnimatePresence mode="wait">
           {activeTab === "dashboard" && (
             <motion.div key="dash" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-12">
@@ -463,41 +540,8 @@ export default function AdminContent() {
                 ))}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="p-8 rounded-[2.5rem] bg-white/5 border border-white/10 flex flex-col justify-between h-full">
-                  <div>
-                    <h3 className="text-xl font-bold text-white mb-2">Công cụ hệ thống</h3>
-                    <p className="text-sm text-muted-foreground mb-6">Tự động chuẩn hóa danh sách tính năng (ticks) cho toàn bộ sản phẩm.</p>
-                  </div>
-                  <button
-                    onClick={async () => {
-                      setIsLoading(true);
-                      const res = await standardizeProductFeatures();
-                      setIsLoading(false);
-                      if (res.success) setStatus({ type: "success", msg: "Đã chuẩn hóa tất cả tính năng sản phẩm!" });
-                      else setStatus({ type: "error", msg: "Lỗi chuẩn hóa." });
-                    }}
-                    className="w-full py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-bold hover:bg-white/10 transition-all flex items-center justify-center gap-2"
-                  >
-                    <CheckCircle2 size={18} />
-                    Sửa 'Ticks' Sản Phẩm
-                  </button>
-                </div>
-
-                <div className="p-8 rounded-[2.5rem] bg-white/5 border border-white/10">
-                  <h3 className="text-xl font-bold text-white mb-6">Hoạt động gần đây</h3>
-                  <div className="space-y-4">
-                    {sales.slice(0, 5).map((sale, i) => (
-                      <div key={i} className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/5">
-                        <div className="flex items-center gap-4">
-                          <div className="w-2 h-2 rounded-full bg-primary" />
-                          <p className="text-sm font-bold text-white">{sale.user_email}</p>
-                        </div>
-                        <p className="text-xs text-muted-foreground">{new Date(sale.created_at).toLocaleDateString()}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+              <div className="grid grid-cols-1 gap-8">
+                <TodayRevenueChart sales={sales} />
               </div>
             </motion.div>
           )}
@@ -546,7 +590,7 @@ export default function AdminContent() {
                     <h2 className="text-3xl font-black text-white tracking-tighter mb-2">Cập nhật kho hàng</h2>
                     <p className="text-muted-foreground">Kéo thả file CSV chứa danh sách tài khoản để nạp vào dịch vụ.</p>
                   </div>
-                  
+
                   <button
                     onClick={handleQuickSync}
                     disabled={isLoading}
@@ -601,16 +645,16 @@ export default function AdminContent() {
 
           {activeTab === "users" && (
             <motion.div key="users" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-3xl font-black text-white tracking-tighter">Quản lý người dùng</h2>
-                <div className="relative w-72">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+              <div className="flex justify-between items-center mb-10">
+                <h2 className="text-4xl font-black text-white tracking-tighter">Quản lý người dùng</h2>
+                <div className="relative w-96 group">
+                  <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors" size={20} />
                   <input
                     type="text"
-                    placeholder="Tìm email, tên, sđt..."
-                    className="w-full bg-white/5 border border-white/10 rounded-xl pl-12 pr-4 py-2.5 text-sm text-white focus:border-primary outline-none transition-all"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Tìm theo tên, email, sđt..."
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-16 pr-6 text-sm text-white focus:border-primary outline-none transition-all"
+                    value={userSearchQuery}
+                    onChange={(e) => setUserSearchQuery(e.target.value)}
                   />
                 </div>
               </div>
@@ -651,6 +695,13 @@ export default function AdminContent() {
                         <p className="text-xs text-muted-foreground italic">
                           Hoạt động cuối: {user.last_activity ? new Date(user.last_activity).toLocaleString("vi-VN") : "N/A"}
                         </p>
+                        <button
+                          onClick={() => handleDeleteUser(user.id)}
+                          className="p-2 rounded-lg text-red-500/40 hover:text-red-500 hover:bg-red-500/10 transition-all cursor-pointer"
+                          title="Xóa người dùng"
+                        >
+                          <Trash2 size={16} />
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -660,33 +711,70 @@ export default function AdminContent() {
 
           {activeTab === "sales" && (
             <motion.div key="sales" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-3xl font-black text-white tracking-tighter">Giao dịch đã thực hiện</h2>
-                <div className="relative w-72">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+              <div className="flex justify-between items-center mb-10">
+                <div className="flex items-center gap-6">
+                  <h2 className="text-4xl font-black text-white tracking-tighter">Giao dịch đã thực hiện</h2>
+                  <button 
+                    onClick={() => {
+                      const filtered = sales.filter(s => {
+                        const query = orderSearchQuery.toLowerCase().startsWith('#') 
+                          ? orderSearchQuery.toLowerCase().substring(1) 
+                          : orderSearchQuery.toLowerCase();
+                        return s.order_number?.toLowerCase().includes(query);
+                      });
+                      toggleSelectAllOrders(filtered);
+                    }}
+                    className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-widest text-primary hover:bg-white/10 transition-all flex items-center gap-2"
+                  >
+                    {selectedOrderIds.length > 0 && selectedOrderIds.length === sales.filter(s => {
+                        const query = orderSearchQuery.toLowerCase().startsWith('#') 
+                          ? orderSearchQuery.toLowerCase().substring(1) 
+                          : orderSearchQuery.toLowerCase();
+                        return s.order_number?.toLowerCase().includes(query);
+                      }).length ? "Bỏ chọn" : "Chọn tất cả hiển thị"}
+                  </button>
+                </div>
+                <div className="relative w-96 group">
+                  <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors" size={20} />
                   <input
                     type="text"
-                    placeholder="Tìm theo tên, email, sđt..."
-                    className="w-full bg-white/5 border border-white/10 rounded-xl pl-12 pr-4 py-2.5 text-sm text-white focus:border-primary outline-none transition-all"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Nhập mã đơn hàng (VD: #BOO...)"
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-16 pr-6 text-sm text-white focus:border-primary outline-none transition-all"
+                    value={orderSearchQuery}
+                    onChange={(e) => setOrderSearchQuery(e.target.value)}
                   />
                 </div>
               </div>
               {sales
                 .filter(sale => {
-                  const query = searchQuery.toLowerCase();
+                  const query = orderSearchQuery.toLowerCase().startsWith('#')
+                    ? orderSearchQuery.toLowerCase().substring(1)
+                    : orderSearchQuery.toLowerCase();
                   return (
-                    sale.customer_name?.toLowerCase().includes(query) ||
-                    sale.user_email?.toLowerCase().includes(query) ||
-                    sale.phone_number?.includes(query) ||
-                    sale.order_number?.toLowerCase().includes(query) ||
-                    sale.products?.name?.toLowerCase().includes(query)
+                    sale.order_number?.toLowerCase().includes(query)
                   );
                 })
                 .map((sale) => (
-                  <div key={sale.id} className="p-8 rounded-[2.5rem] bg-white/5 border border-white/10 flex flex-col md:flex-row justify-between items-center gap-6 group hover:bg-white/[0.08] transition-all">
+                  <div key={sale.id} className="p-8 rounded-[2.5rem] bg-white/5 border border-white/10 flex flex-col md:flex-row justify-between items-center gap-6 group hover:bg-white/[0.08] transition-all relative overflow-hidden">
+                    {/* Checkbox Overlay for Selection */}
+                    <div 
+                      onClick={() => toggleSelectOrder(sale.id)}
+                      className={cn(
+                        "absolute left-0 top-0 bottom-0 w-2 cursor-pointer transition-all",
+                        selectedOrderIds.includes(sale.id) ? "bg-primary" : "bg-transparent hover:bg-white/10"
+                      )}
+                    />
+                    
                     <div className="flex items-center gap-6">
+                      <div 
+                        onClick={() => toggleSelectOrder(sale.id)}
+                        className={cn(
+                          "w-6 h-6 rounded-lg border-2 flex items-center justify-center cursor-pointer transition-all",
+                          selectedOrderIds.includes(sale.id) ? "bg-primary border-primary text-black" : "border-white/10 hover:border-primary/50"
+                        )}
+                      >
+                        {selectedOrderIds.includes(sale.id) && <Check size={14} strokeWidth={4} />}
+                      </div>
                       <div className="w-16 h-16 rounded-3xl bg-white/5 flex items-center justify-center text-primary group-hover:scale-110 transition-all"><ShieldCheck size={32} /></div>
                       <div>
                         <div className="flex items-center gap-3 mb-1">
@@ -726,86 +814,169 @@ export default function AdminContent() {
                         <span className="px-3 py-1 rounded-lg bg-primary/10 text-primary text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
                           <CheckCircle2 size={12} /> Giao hàng tự động thành công
                         </span>
+                        <button
+                          onClick={() => handleDeleteOrder(sale.id)}
+                          className="p-2 rounded-lg text-red-500/40 hover:text-red-500 hover:bg-red-500/10 transition-all cursor-pointer mt-2"
+                          title="Xóa giao dịch"
+                        >
+                          <Trash2 size={16} />
+                        </button>
                       </div>
                     </div>
                   </div>
                 ))}
+              
+              {/* Floating Bulk Toolbar */}
+              <AnimatePresence>
+                {selectedOrderIds.length > 0 && (
+                  <motion.div 
+                    initial={{ y: 100, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    exit={{ y: 100, opacity: 0 }}
+                    className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 px-8 py-4 bg-black/80 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl flex items-center gap-8 min-w-[500px] justify-between"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-2xl bg-primary/20 flex items-center justify-center text-primary font-black">
+                        {selectedOrderIds.length}
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-white">Đơn hàng đã chọn</p>
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-black">Sẵn sàng để xử lý hàng loạt</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-3">
+                      <button 
+                        onClick={() => setSelectedOrderIds([])}
+                        className="px-6 py-2 rounded-xl text-xs font-bold text-white/60 hover:text-white transition-all"
+                      >
+                        Hủy
+                      </button>
+                      <button 
+                        onClick={handleBulkDeleteOrders}
+                        disabled={isLoading}
+                        className="px-8 py-3 rounded-2xl bg-red-500 text-white text-xs font-black uppercase tracking-widest hover:bg-red-600 hover:scale-105 transition-all flex items-center gap-2 shadow-lg shadow-red-500/20"
+                      >
+                        <Trash2 size={16} />
+                        {isLoading ? "Đang xử lý..." : `Xóa hàng loạt (${selectedOrderIds.length})`}
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
           )}
 
           {activeTab === "tickets" && (
             <motion.div key="tickets" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-3xl font-black text-white tracking-tighter">Hỗ trợ khách hàng</h2>
+              <div className="flex justify-between items-center mb-10">
+                <h2 className="text-4xl font-black text-white tracking-tighter">Hỗ trợ khách hàng</h2>
+                <div className="relative w-96 group">
+                  <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors" size={20} />
+                  <input
+                    type="text"
+                    placeholder="Tìm theo tên, email hoặc nội dung..."
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-16 pr-6 text-sm text-white focus:border-primary outline-none transition-all"
+                    value={ticketSearchQuery}
+                    onChange={(e) => setTicketSearchQuery(e.target.value)}
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-1 gap-6">
-                {ticketsList.length > 0 ? (
-                  ticketsList.map((ticket) => (
-                    <div key={ticket.id} className="p-8 rounded-[2.5rem] bg-white/5 border border-white/10 flex flex-col gap-6 group">
-                      <div className="flex justify-between items-start">
-                        <div className="flex gap-4">
-                          <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
-                            <Mail size={24} />
+                {ticketsList
+                  .filter(ticket => {
+                    const query = ticketSearchQuery.toLowerCase();
+                    return (
+                      ticket.name?.toLowerCase().includes(query) ||
+                      ticket.email?.toLowerCase().includes(query) ||
+                      ticket.subject?.toLowerCase().includes(query) ||
+                      ticket.message?.toLowerCase().includes(query)
+                    );
+                  })
+                  .length > 0 ? (
+                  ticketsList
+                    .filter(ticket => {
+                      const query = ticketSearchQuery.toLowerCase();
+                      return (
+                        ticket.name?.toLowerCase().includes(query) ||
+                        ticket.email?.toLowerCase().includes(query) ||
+                        ticket.subject?.toLowerCase().includes(query) ||
+                        ticket.message?.toLowerCase().includes(query)
+                      );
+                    })
+                    .map((ticket) => (
+                      <div key={ticket.id} className="p-8 rounded-[2.5rem] bg-white/5 border border-white/10 flex flex-col gap-6 group">
+                        <div className="flex justify-between items-start">
+                          <div className="flex gap-4">
+                            <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+                              <Mail size={24} />
+                            </div>
+                            <div>
+                              <h3 className="text-xl font-bold text-white">{ticket.name}</h3>
+                              <p className="text-sm text-muted-foreground">{ticket.email}</p>
+                            </div>
                           </div>
-                          <div>
-                            <h3 className="text-xl font-bold text-white">{ticket.name}</h3>
-                            <p className="text-sm text-muted-foreground">{ticket.email}</p>
+                          <div className="flex flex-col items-end gap-2">
+                            <span className={cn(
+                              "px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest",
+                              ticket.status === 'pending' ? "bg-orange-500/20 text-orange-500" : "bg-emerald-500/20 text-emerald-500"
+                            )}>
+                              {ticket.status === 'pending' ? "Đang chờ" : "Đã xử lý"}
+                            </span>
+                            <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">
+                              {new Date(ticket.created_at).toLocaleString("vi-VN")}
+                            </p>
+                            <button
+                              onClick={() => handleDeleteTicket(ticket.id)}
+                              className="p-2 rounded-lg text-red-500/40 hover:text-red-500 hover:bg-red-500/10 transition-all cursor-pointer"
+                              title="Xóa yêu cầu"
+                            >
+                              <Trash2 size={16} />
+                            </button>
                           </div>
                         </div>
-                        <div className="flex flex-col items-end gap-2">
-                          <span className={cn(
-                            "px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest",
-                            ticket.status === 'pending' ? "bg-orange-500/20 text-orange-500" : "bg-emerald-500/20 text-emerald-500"
-                          )}>
-                            {ticket.status === 'pending' ? "Đang chờ" : "Đã xử lý"}
-                          </span>
-                          <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">
-                            {new Date(ticket.created_at).toLocaleString("vi-VN")}
-                          </p>
+
+                        <div className="p-6 rounded-2xl bg-black/40 border border-white/5">
+                          <p className="text-xs font-black text-primary uppercase mb-2">Chủ đề: {ticket.subject}</p>
+                          <p className="text-white/80 leading-relaxed italic">"{ticket.message}"</p>
+                        </div>
+
+                        <div className="space-y-4">
+                          <textarea
+                            placeholder="Nhập nội dung phản hồi cho khách hàng..."
+                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm text-white focus:border-primary outline-none transition-all min-h-[100px] resize-none"
+                            value={replies[ticket.id] || ""}
+                            onChange={(e) => setReplies({ ...replies, [ticket.id]: e.target.value })}
+                          />
+                          <div className="flex gap-3 justify-end">
+                            <button
+                              onClick={() => handleReplyTicket(ticket.id)}
+                              disabled={replyingToId === ticket.id || !replies[ticket.id]}
+                              className={cn(
+                                "px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
+                                replies[ticket.id]
+                                  ? "bg-primary text-black hover:scale-105 shadow-lg shadow-primary/20"
+                                  : "bg-white/5 text-white/20 cursor-not-allowed"
+                              )}
+                            >
+                              {replyingToId === ticket.id ? "Đang gửi..." : "Gửi phản hồi qua Email"}
+                            </button>
+                            <button
+                              onClick={() => handleUpdateTicketStatus(ticket.id, ticket.status === 'pending' ? 'resolved' : 'pending')}
+                              className={cn(
+                                "px-6 py-2.5 rounded-xl text-xs font-bold transition-all",
+                                ticket.status === 'pending'
+                                  ? "bg-white/10 text-white hover:bg-white/20"
+                                  : "bg-emerald-500/20 text-emerald-500 hover:bg-emerald-500/30"
+                              )}
+                            >
+                              {ticket.status === 'pending' ? "Chỉ đánh dấu đã xử lý" : "Mở lại ticket"}
+                            </button>
+                          </div>
                         </div>
                       </div>
-
-                      <div className="p-6 rounded-2xl bg-black/40 border border-white/5">
-                        <p className="text-xs font-black text-primary uppercase mb-2">Chủ đề: {ticket.subject}</p>
-                        <p className="text-white/80 leading-relaxed italic">"{ticket.message}"</p>
-                      </div>
-
-                      <div className="space-y-4">
-                        <textarea
-                          placeholder="Nhập nội dung phản hồi cho khách hàng..."
-                          className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm text-white focus:border-primary outline-none transition-all min-h-[100px] resize-none"
-                          value={replies[ticket.id] || ""}
-                          onChange={(e) => setReplies({ ...replies, [ticket.id]: e.target.value })}
-                        />
-                        <div className="flex gap-3 justify-end">
-                          <button
-                            onClick={() => handleReplyTicket(ticket.id)}
-                            disabled={replyingToId === ticket.id || !replies[ticket.id]}
-                            className={cn(
-                              "px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
-                              replies[ticket.id]
-                                ? "bg-primary text-black hover:scale-105 shadow-lg shadow-primary/20"
-                                : "bg-white/5 text-white/20 cursor-not-allowed"
-                            )}
-                          >
-                            {replyingToId === ticket.id ? "Đang gửi..." : "Gửi phản hồi qua Email"}
-                          </button>
-                          <button
-                            onClick={() => handleUpdateTicketStatus(ticket.id, ticket.status === 'pending' ? 'resolved' : 'pending')}
-                            className={cn(
-                              "px-6 py-2.5 rounded-xl text-xs font-bold transition-all",
-                              ticket.status === 'pending'
-                                ? "bg-white/10 text-white hover:bg-white/20"
-                                : "bg-emerald-500/20 text-emerald-500 hover:bg-emerald-500/30"
-                            )}
-                          >
-                            {ticket.status === 'pending' ? "Chỉ đánh dấu đã xử lý" : "Mở lại ticket"}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))
+                    ))
                 ) : (
                   <div className="py-20 text-center">
                     <p className="text-muted-foreground italic">Hiện chưa có yêu cầu hỗ trợ nào.</p>
@@ -849,10 +1020,20 @@ export default function AdminContent() {
         {/* Coupons Tab */}
         {activeTab === "coupons" && (
           <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center mb-10">
               <div>
-                <h2 className="text-3xl font-black text-white tracking-tighter">Mã giảm giá</h2>
-                <p className="text-muted-foreground">Quản lý các chương trình khuyến mãi và Voucher</p>
+                <h2 className="text-4xl font-black text-white tracking-tighter">Mã giảm giá</h2>
+                <p className="text-sm text-muted-foreground">Quản lý các chương trình khuyến mãi và Voucher</p>
+              </div>
+              <div className="relative w-96 group">
+                <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors" size={20} />
+                <input
+                  type="text"
+                  placeholder="Nhập mã Voucher..."
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-16 pr-6 text-sm text-white focus:border-primary outline-none transition-all"
+                  value={couponSearchQuery}
+                  onChange={(e) => setCouponSearchQuery(e.target.value)}
+                />
               </div>
             </div>
 
@@ -939,36 +1120,38 @@ export default function AdminContent() {
 
               {/* List Coupons */}
               <div className="lg:col-span-2 space-y-4">
-                {couponsList.map((c) => (
-                  <div key={c.id} className="p-6 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-between group hover:bg-white/[0.08] transition-all">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-                        <Ticket size={24} />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h4 className="text-lg font-black text-white">{c.code}</h4>
-                          <span className={cn(
-                            "text-[10px] px-2 py-0.5 rounded-full font-bold uppercase",
-                            c.active ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500"
-                          )}>
-                            {c.active ? "Đang chạy" : "Tạm dừng"}
-                          </span>
+                {couponsList
+                  .filter(c => c.code.toLowerCase().includes(couponSearchQuery.toLowerCase()))
+                  .map((c) => (
+                    <div key={c.id} className="p-6 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-between group hover:bg-white/[0.08] transition-all">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                          <Ticket size={24} />
                         </div>
-                        <p className="text-sm text-muted-foreground font-medium">
-                          Giảm {c.type === "percent" ? `${c.value}%` : `${c.value.toLocaleString()}đ`}
-                          {" • "} Đã dùng {c.used_count}/{c.usage_limit || "∞"}
-                        </p>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-lg font-black text-white">{c.code}</h4>
+                            <span className={cn(
+                              "text-[10px] px-2 py-0.5 rounded-full font-bold uppercase",
+                              c.active ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500"
+                            )}>
+                              {c.active ? "Đang chạy" : "Tạm dừng"}
+                            </span>
+                          </div>
+                          <p className="text-sm text-muted-foreground font-medium">
+                            Giảm {c.type === "percent" ? `${c.value}%` : `${c.value.toLocaleString()}đ`}
+                            {" • "} Đã dùng {c.used_count}/{c.usage_limit || "∞"}
+                          </p>
+                        </div>
                       </div>
+                      <button
+                        onClick={() => handleDeleteCoupon(c.id)}
+                        className="p-3 rounded-xl text-red-500/40 hover:text-red-500 hover:bg-red-500/10 transition-all cursor-pointer"
+                      >
+                        <Trash2 size={18} />
+                      </button>
                     </div>
-                    <button
-                      onClick={() => handleDeleteCoupon(c.id)}
-                      className="p-3 rounded-xl hover:bg-red-500/10 text-white/20 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100"
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                  </div>
-                ))}
+                  ))}
                 {couponsList.length === 0 && (
                   <div className="py-20 text-center border border-dashed border-white/10 rounded-3xl text-muted-foreground uppercase text-xs tracking-widest font-bold">
                     Chưa có mã giảm giá nào
@@ -979,6 +1162,149 @@ export default function AdminContent() {
           </div>
         )}
       </main>
+    </div>
+  );
+}
+
+function TodayRevenueChart({ sales }: { sales: any[] }) {
+  const [hoveredHour, setHoveredHour] = useState<number | null>(null);
+
+  // Calculate today's hourly data
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+
+  const hourlyData = Array(24).fill(0);
+  let todayTotal = 0;
+
+  sales.forEach(sale => {
+    const saleTime = new Date(sale.created_at).getTime();
+    if (saleTime >= startOfToday) {
+      const hour = new Date(sale.created_at).getHours();
+      const amount = sale.products?.price || 0;
+      hourlyData[hour] += amount;
+      todayTotal += amount;
+    }
+  });
+
+  const maxRevenue = Math.max(...hourlyData, 1); // Avoid division by zero
+
+  // Format currency helpers
+  const formatCompact = (val: number) => {
+    if (val >= 1000000) return (val / 1000000).toFixed(1) + 'M';
+    if (val >= 1000) return (val / 1000).toFixed(0) + 'k';
+    return val.toString();
+  };
+
+  return (
+    <div className="p-12 rounded-[3.5rem] bg-[#0d0d0d] border border-white/[0.05] space-y-12 relative overflow-hidden">
+      {/* Background Gradients */}
+      <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 blur-[120px] rounded-full -translate-y-1/2 translate-x-1/2" />
+      <div className="absolute bottom-0 left-0 w-72 h-72 bg-primary/10 blur-[100px] rounded-full translate-y-1/2 -translate-x-1/2" />
+      
+      {/* Header Layout per Image 1 */}
+      <div className="flex justify-between items-start relative z-10">
+        <div>
+          <h3 className="text-4xl font-black text-white tracking-tighter mb-2">
+            Doanh thu <span className="text-primary italic">Hôm nay</span>
+          </h3>
+          <p className="text-gray-500 text-sm font-medium">Phân tích dòng tiền theo từng khung giờ</p>
+        </div>
+        <div className="text-right">
+          <p className="text-5xl font-black text-white tracking-tighter">{todayTotal.toLocaleString()}đ</p>
+          <div className="flex items-center justify-end gap-2 text-primary font-black uppercase tracking-[0.2em] text-[10px] mt-2">
+            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20">
+              <TrendingUp size={12} strokeWidth={3} />
+              Tăng trưởng thực tế
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Chart Area with Labels per Image 2 */}
+      <div className="h-72 flex items-end justify-between gap-2.5 relative pt-12">
+        {/* Horizontal Helper Grid */}
+        <div className="absolute inset-x-0 top-12 bottom-8 flex flex-col justify-between pointer-events-none">
+          <div className="w-full border-t border-white/[0.03]" />
+          <div className="w-full border-t border-white/[0.03]" />
+          <div className="w-full border-t border-white/[0.03]" />
+        </div>
+
+        {hourlyData.map((revenue, hour) => {
+          const height = (revenue / maxRevenue) * 100;
+          const isCurrentHour = new Date().getHours() === hour;
+
+          return (
+            <div
+              key={hour}
+              className="flex-grow flex flex-col items-center gap-4 group relative h-full justify-end"
+              onMouseEnter={() => setHoveredHour(hour)}
+              onMouseLeave={() => setHoveredHour(null)}
+            >
+              {/* Value Label on Top (Persistent but subtle) */}
+              <motion.span 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: revenue > 0 ? 0.6 : 0 }}
+                whileHover={{ opacity: 1, scale: 1.1 }}
+                className={cn(
+                  "text-[9px] font-black text-white/40 mb-1 transition-all",
+                  revenue > 0 && "text-white/80",
+                  hoveredHour === hour && "text-primary scale-125"
+                )}
+              >
+                {revenue > 0 ? formatCompact(revenue) : ""}
+              </motion.span>
+
+              {/* Bar Container */}
+              <div className="w-full relative flex flex-col items-center justify-end h-full max-h-[160px]">
+                <motion.div
+                  initial={{ height: 0 }}
+                  animate={{ height: `${Math.max(height, revenue > 0 ? 4 : 0)}%` }}
+                  transition={{ duration: 1.2, delay: hour * 0.03, ease: [0.23, 1, 0.32, 1] }}
+                  className={cn(
+                    "w-full rounded-t-xl transition-all duration-500 relative",
+                    revenue > 0 
+                      ? "bg-gradient-to-t from-primary/40 to-primary shadow-[0_0_20px_rgba(0,255,160,0.15)]" 
+                      : "bg-white/[0.03]",
+                    hoveredHour === hour && "brightness-125 scale-x-110 shadow-[0_0_30px_rgba(0,255,160,0.4)]",
+                    isCurrentHour && !hoveredHour && "bg-primary/60 border-x border-t border-primary/40"
+                  )}
+                >
+                  {/* Subtle Gradient Overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                </motion.div>
+              </div>
+
+              {/* Hour Label */}
+              <span className={cn(
+                "text-[10px] font-black transition-all",
+                hoveredHour === hour ? "text-primary scale-110" : "text-gray-600",
+                isCurrentHour && "text-white underline decoration-primary underline-offset-4"
+              )}>
+                {hour}h
+              </span>
+
+              {/* Tooltip on Hover */}
+              <AnimatePresence>
+                {hoveredHour === hour && revenue > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.9, y: 10 }}
+                    className="absolute -top-16 bg-white text-black px-4 py-2 rounded-2xl text-[10px] font-black pointer-events-none z-50 whitespace-nowrap shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex flex-col items-center"
+                  >
+                    <span className="text-gray-500 uppercase tracking-widest text-[8px] mb-1">{hour}:00 - {hour}:59</span>
+                    <span className="text-lg">{revenue.toLocaleString()}đ</span>
+                    <div className="absolute bottom-[-6px] left-1/2 -translate-x-1/2 w-3 h-3 bg-white rotate-45" />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Background Glow */}
+      <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-primary/10 rounded-full blur-[100px] pointer-events-none" />
     </div>
   );
 }

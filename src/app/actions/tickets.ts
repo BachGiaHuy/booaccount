@@ -106,3 +106,14 @@ export async function replyToTicketAction(id: string, replyMessage: string) {
     return { success: false, error: err.message };
   }
 }
+
+export async function deleteTicketAction(id: string) {
+  try {
+    const { error } = await supabase.from("tickets").delete().eq("id", id);
+    if (error) throw error;
+    return { success: true };
+  } catch (err: any) {
+    console.error("Error deleting ticket:", err);
+    return { success: false, error: err.message };
+  }
+}

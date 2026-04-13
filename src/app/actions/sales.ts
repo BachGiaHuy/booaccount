@@ -68,3 +68,39 @@ export async function getSalesAction() {
     return { success: false, error: error.message };
   }
 }
+
+export async function deleteOrderAction(orderId: string) {
+  try {
+    const { error } = await supabaseAdmin
+      .from("orders")
+      .delete()
+      .eq("id", orderId);
+
+    if (error) {
+      console.error("Delete Order Error:", error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("Action Catch Error:", error);
+    return { success: false, error: error.message };
+  }
+}export async function deleteOrdersBulkAction(orderIds: string[]) {
+  try {
+    const { error } = await supabaseAdmin
+      .from("orders")
+      .delete()
+      .in("id", orderIds);
+
+    if (error) {
+      console.error("Delete Bulk Orders Error:", error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("Action Catch Error:", error);
+    return { success: false, error: error.message };
+  }
+}

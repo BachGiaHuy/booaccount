@@ -176,17 +176,7 @@ export default function Home() {
               </div>
               <p className="text-gray-400 font-medium animate-pulse">Đang tải danh sách dịch vụ...</p>
             </div>
-          ) : filteredProducts.length === 0 ? (
-            <div className="text-center py-24">
-              <div className="bg-gray-800/50 border border-gray-700 p-8 rounded-2xl inline-block">
-                <p className="text-gray-400 font-medium text-lg">Hệ thống chưa có sản phẩm nào.</p>
-                <p className="text-gray-500 text-sm mt-2">Vui lòng chạy lệnh đổ dữ liệu hoặc thêm sản phẩm trong Admin.</p>
-                <Link href="/admin" className="mt-6 inline-flex items-center gap-2 text-primary hover:underline font-semibold">
-                  Đến trang Admin <ArrowRight className="w-4 h-4" />
-                </Link>
-              </div>
-            </div>
-          ) : (
+          ) : filteredProducts.length > 0 && (
             <div className="relative -mx-6 px-6 group/slider">
               {/* Navigation Buttons */}
               <button 
@@ -210,35 +200,33 @@ export default function Home() {
 
               <div 
                 id="product-slider"
-                className="grid grid-rows-1 md:grid-rows-2 grid-flow-col gap-6 md:gap-8 overflow-x-auto no-scrollbar py-8 snap-x snap-mandatory"
+                className={cn(
+                  "grid grid-flow-col gap-x-6 md:gap-x-8 gap-y-10 md:gap-y-12 overflow-x-auto no-scrollbar py-8 snap-x snap-mandatory",
+                  filteredProducts.length >= 8 
+                    ? "grid-rows-1 md:grid-rows-2 md:min-h-[1050px]" 
+                    : "grid-rows-1 md:min-h-[500px]"
+                )}
                 style={{ scrollBehavior: 'smooth' }}
               >
-                {filteredProducts.length > 0 ? (
-                  filteredProducts.map((product, index) => (
-                    <motion.div 
-                      key={product.id} 
-                      initial={{ opacity: 0, y: 30, rotateX: 15 }}
-                      whileInView={{ opacity: 1, y: 0, rotateX: 0 }}
-                      viewport={{ once: true }}
-                      transition={{ duration: 0.6, delay: index * 0.1, ease: "easeOut" }}
-                      className="w-[280px] md:w-[320px] flex-shrink-0 snap-start h-full pb-4"
-                    >
-                      <ProductCard
-                        {...product}
-                        brand={product.brand as any}
-                        iconUrl={product.icon_url}
-                        price={product.price.toLocaleString("vi-VN") + "đ"}
-                        originalPrice={product.original_price ? product.original_price.toLocaleString("vi-VN") + "đ" : undefined}
-                        features={typeof product.features === 'string' ? JSON.parse(product.features) : product.features}
-                      />
-                    </motion.div>
-                  ))
-                ) : (
-                  <div className="w-full py-20 flex flex-col items-center justify-center text-center">
-                    <p className="text-xl font-bold text-foreground mb-2">Không tìm thấy sản phẩm</p>
-                    <p className="text-muted-foreground">Thử tìm kiếm với từ khóa khác như "Netflix" hoặc "Spotify"</p>
-                  </div>
-                )}
+                {filteredProducts.map((product, index) => (
+                  <motion.div 
+                    key={product.id} 
+                    initial={{ opacity: 0, y: 30, rotateX: 15 }}
+                    whileInView={{ opacity: 1, y: 0, rotateX: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.6, delay: index * 0.1, ease: "easeOut" }}
+                    className="w-[280px] md:w-[320px] flex-shrink-0 snap-start h-fit pb-4"
+                  >
+                    <ProductCard
+                      {...product}
+                      brand={product.brand as any}
+                      iconUrl={product.icon_url}
+                      price={product.price.toLocaleString("vi-VN") + "đ"}
+                      originalPrice={product.original_price ? product.original_price.toLocaleString("vi-VN") + "đ" : undefined}
+                      features={typeof product.features === 'string' ? JSON.parse(product.features) : product.features}
+                    />
+                  </motion.div>
+                ))}
               </div>
               
               {/* Subtle visual cues for scrolling */}

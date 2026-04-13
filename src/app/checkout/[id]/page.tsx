@@ -228,7 +228,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ id: string 
       }
 
       setTimeout(() => {
-        router.push("/dashboard?new_order=true");
+        router.push(`/dashboard?new_order=true&order_id=${orderId}`);
       }, 1500);
     } else {
       setError(result.error || "Có lỗi xảy ra. Vui lòng thử lại.");

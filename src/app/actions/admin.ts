@@ -271,3 +271,22 @@ export async function syncInventorySamplesAction() {
     return { success: false, error: error.message || "Lỗi khi đồng bộ thư mục mẫu." };
   }
 }
+
+export async function deleteCustomerAction(customerId: string) {
+  try {
+    const { error } = await supabaseAdmin
+      .from("customers")
+      .delete()
+      .eq("id", customerId);
+
+    if (error) {
+      console.error("Delete Customer Error:", error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("Action Catch Error:", error);
+    return { success: false, error: error.message };
+  }
+}
