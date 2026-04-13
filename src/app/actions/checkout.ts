@@ -88,12 +88,25 @@ export async function completeOrderAction(
         
         if (insertError) {
           console.error("Order Insertion Error:", insertError);
-          // If columns don't exist yet, we retry without them to at least save the order
-          if (insertError.code === 'P0001' || insertError.message.includes("column")) {
+          
+          // Fallback logic: If any new columns (price, duration, discount, etc.) are missing, 
+          // we retry with only the absolute base columns to ensure the order is saved.
+          const isColumnError = insertError.message.includes("column") || 
+                               insertError.code === 'P0001' || 
+                               insertError.message.includes("price");
+
+          if (isColumnError) {
+             console.log("Retrying insertion with base columns only...");
              const { error: retryError } = await supabase.from("orders").insert({
-               ...orderData,
-               discount_amount: undefined,
-               coupon_used: undefined
+               product_id: orderData.product_id,
+               inventory_id: orderData.inventory_id,
+               order_number: orderData.order_number,
+               status: orderData.status,
+               credentials_copy: orderData.credentials_copy,
+               user_email: orderData.user_email,
+               customer_name: orderData.customer_name,
+               phone_number: orderData.phone_number,
+               address: orderData.address
              });
              if (retryError) throw retryError;
           } else {
