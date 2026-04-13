@@ -13,13 +13,13 @@ import { supabase } from "@/lib/supabase";
 import { trackCustomerAction } from "../../actions/admin";
 
 export default function CheckoutPage({ params }: { params: Promise<{ id: string }> }) {
+  // 1. Tất cả các Hooks phải ở trên cùng
   const unwrappedParams = use(params);
-  const productId = unwrappedParams.id;
-  
   const router = useRouter();
+  const searchParams = useSearchParams();
+  
   const [product, setProduct] = useState<any>(null);
   const [isProductLoading, setIsProductLoading] = useState(true);
-  
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [orderId, setOrderId] = useState("");
@@ -28,6 +28,10 @@ export default function CheckoutPage({ params }: { params: Promise<{ id: string 
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
   const [shouldSaveInfo, setShouldSaveInfo] = useState(true);
+
+  // 2. Sau đó mới đến các biến thông thường
+  const productId = unwrappedParams.id;
+  const selectedDuration = parseInt(searchParams.get("duration") || "1");
 
   useEffect(() => {
     const loadProduct = async () => {
@@ -113,8 +117,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ id: string 
     );
   }
 
-  const searchParams = useSearchParams();
-  const selectedDuration = parseInt(searchParams.get("duration") || "1");
+
 
   const calculatePrice = (basePrice: number, months: number) => {
     if (months === 999) return basePrice * 10; // Canva Lifetime logic
