@@ -35,6 +35,10 @@ import { importInventoryAction, addProductAction, updateProductAction, deletePro
 import { getTicketsAction, updateTicketStatusAction, replyToTicketAction } from "@/app/actions/tickets";
 import { getCouponsAction, createCouponAction, deleteCouponAction } from "@/app/actions/coupons";
 import { motion, AnimatePresence } from "framer-motion";
+import { isAdmin } from "@/lib/admin-config";
+import { User } from "@supabase/supabase-js";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 interface Product {
   id: string;
@@ -65,6 +69,9 @@ export default function AdminContent() {
   const [replies, setReplies] = useState<Record<string, string>>({});
   const [replyingToId, setReplyingToId] = useState<string | null>(null);
   const [couponsList, setCouponsList] = useState<any[]>([]);
+  const [user, setUser] = useState<User | null>(null);
+  const [isVerifying, setIsVerifying] = useState(true);
+  const router = useRouter();
 
   // New Coupon Form State
   const [newCoupon, setNewCoupon] = useState({
@@ -88,12 +95,29 @@ export default function AdminContent() {
   });
 
   useEffect(() => {
+    checkAdmin();
+  }, []);
+
+  const checkAdmin = async () => {
+    setIsVerifying(true);
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session || !isAdmin(session.user.email)) {
+      setUser(null);
+      setIsVerifying(false);
+      return;
+    }
+
+    setUser(session.user);
+    setIsVerifying(false);
+    
+    // Once verified, fetch data
     fetchProducts();
     fetchSales();
     fetchUsers();
     fetchTickets();
     fetchCoupons();
-  }, []);
+  };
 
   const fetchProducts = async () => {
     const { data } = await supabase.from("products").select("*").order("created_at", { ascending: false });
@@ -342,6 +366,45 @@ export default function AdminContent() {
       {label}
     </button>
   );
+
+  if (isVerifying) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-12 h-12 text-primary animate-spin" />
+          <p className="text-gray-400 font-medium animate-pulse">Đang xác minh quyền quản trị...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user || !isAdmin(user.email)) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center p-6">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="w-full max-w-md p-10 rounded-[3rem] bg-white/5 border border-white/10 text-center space-y-6"
+        >
+          <div className="w-20 h-20 rounded-3xl bg-red-500/10 flex items-center justify-center text-red-500 mx-auto">
+            <ShieldCheck size={40} />
+          </div>
+          <div>
+            <h1 className="text-2xl font-black text-white tracking-tighter mb-2">Truy cập bị từ chối</h1>
+            <p className="text-gray-400 text-sm">Bạn không có quyền truy cập vào khu vực này. Vui lòng đăng nhập bằng tài khoản Quản trị viên.</p>
+          </div>
+          <div className="pt-4 flex flex-col gap-3">
+            <Link href="/login" className="w-full py-4 rounded-2xl bg-white text-black font-bold hover:bg-gray-200 transition-all">
+              Đăng nhập Admin
+            </Link>
+            <Link href="/" className="text-sm text-gray-500 hover:text-white transition-colors">
+              Quay về trang chủ
+            </Link>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex bg-black">

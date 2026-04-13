@@ -9,6 +9,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { isAdmin } from "@/lib/admin-config";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -31,7 +32,12 @@ export default function LoginPage() {
       setError("Email hoặc mật khẩu không chính xác.");
       setIsLoading(false);
     } else {
-      router.push("/dashboard");
+      const { data: { user } } = await supabase.auth.getUser();
+      if (isAdmin(user?.email)) {
+        router.push("/admin");
+      } else {
+        router.push("/dashboard");
+      }
       router.refresh();
     }
   };
