@@ -1,26 +1,86 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #fafafa;
+  --foreground: #000000;
+  --card: #ffffff;
+  --card-foreground: #000000;
+  --border: #e2e2e2;
+  --input: #e2e2e2;
+  --muted: #f4f4f4;
+  --muted-foreground: #525252;
+  --primary: #00FFA3;
+  --primary-foreground: #000000;
+  --shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.05);
 }
 
-@theme inline {
+.dark {
+  --background: #0a0a0a;
+  --foreground: #ffffff;
+  --card: #121212;
+  --card-foreground: #ffffff;
+  --border: #1f1f1f;
+  --input: #1f1f1f;
+  --muted: #171717;
+  --muted-foreground: #a3a3a3;
+  --shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+}
+
+@theme {
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--primary);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --shadow-theme: var(--shadow);
+
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
+  --radius-3xl: 1.5rem;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  * {
+    border-color: var(--color-border);
+    box-sizing: border-box;
+  }
+  html, body {
+    max-width: 100%;
+    overflow-x: hidden;
+    position: relative;
+  }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    @apply selection:bg-primary/30;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  .glass-card {
+    @apply bg-card/60 backdrop-blur-xl border border-border shadow-theme;
+  }
+  
+  .neon-glow {
+    box-shadow: 0 0 20px rgba(0, 255, 163, 0.15), 0 0 40px rgba(0, 255, 163, 0.1);
+  }
+
+  .neon-text {
+    text-shadow: 0 0 10px rgba(0, 255, 163, 0.5);
+  }
 }
+
+@utility gradient-bg {
+  background: radial-gradient(circle at top center, rgba(0, 255, 163, 0.05) 0%, transparent 70%);
+}
+
+@utility brand-netflix { border-color: #E50914; }
+@utility brand-spotify { border-color: #1DB954; }
+@utility brand-google { border-color: #4285F4; }
+@utility brand-capcut { border-color: #ffffff; }
